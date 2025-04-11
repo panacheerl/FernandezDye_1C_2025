@@ -1,25 +1,45 @@
-/*! @mainpage Template
+/*! @mainpage Proyecto 1, Ejercicio 6:
+ *	Mostrar un numero de formato decimal de 3 digitos en un display LCD
  *
  * @section genDesc General Description
  *
- * This section describes how the program works.
- *
- * <a href="https://drive.google.com/...">Operation Example</a>
+ * Esta aplicacion permite mostrar un numero de formato decimal de 3 cifras
+ * en un display LCD, el cual consiste en cifras individuales conformadas 
+ * mediante 7 segmentos. Para realizar esta tarea se utiliza una estructura de
+ * funciones. Una primera funcion principal es la que recibe el numero a mostrar,
+ * el numero de cifras, un vector de pines en los cuales se enviara el numero en
+ * formato bcd y un vector de cifras, el cual controla en que posicion se dibujara
+ * el numero enviado.
+ * Esta funcion, a su vez, utiliza otras 2 en forma complementaria. Una convierte 
+ * el numero inicial en un arreglo de 3 cifras individuales. Una vez obtenido este
+ * arreglo, comienza un bucle el cual llama a la funcion convertir a GPIO, traduciendo
+ * a la configuracion de pines requerida por el display. Luego, se envia un pulso
+ * en el pin de cifra correspondiente. Al realizarse este proceso 3 veces, se obtiene
+ * el numero solicitado en el display. 
+ * 
  *
  * @section hardConn Hardware Connection
  *
- * |    Peripheral  |   ESP32   	|
+ * |    Display  	|   ESP32   	|
  * |:--------------:|:--------------|
- * | 	PIN_X	 	| 	GPIO_X		|
+ * | 	D1	 		| 	GPIO_20		|
+ * | 	D2	 		| 	GPIO_21		|
+ * | 	D3	 		| 	GPIO_22		|
+ * | 	D4	 		| 	GPIO_23		|
+ * | 	SEL_1 		|	GPIO_19		|
+ * | 	SEL_2 		|	GPIO_18		|
+ * | 	SEL_3 		|	GPIO_9		|
+ * | 	+5V	 		|	+5V			|	
+ * | 	GND	 		|	GND			|
  *
  *
  * @section changelog Changelog
  *
  * |   Date	    | Description                                    |
  * |:----------:|:-----------------------------------------------|
- * | 12/09/2023 | Document creation		                         |
+ * | 11/04/2025 | Creacion de documentacion                      |
  *
- * @author Albano Peñalva (albano.penalva@uner.edu.ar)
+ * @author Fernandez Dye Juan Francisco (kioru.juan@gmail.com)
  *
  */
 
@@ -29,18 +49,47 @@
 #include "gpio_mcu.h"
 /*==================[macros and definitions]=================================*/
 
+
+/*==================[internal data definition]===============================*/
+
+/** @def gpioConf_t
+ *  @brief Estructura que configura los pines como entradas o salidas
+ */
+
 typedef struct
 {
 	gpio_t pin; /*!< GPIO pin number */
 	io_t dir;	/*!< GPIO direction '0' IN;  '1' OUT*/
 } gpioConf_t;
 
-/*==================[internal data definition]===============================*/
-
 /*==================[internal functions declaration]=========================*/
-void convertirBcdAGpio(uint8_t numeroBCD, gpioConf_t *configuracionGpio);
-uint8_t convertToBcdArray(uint32_t data, uint8_t digits, uint8_t *bcd_number);
 
+/** @fn void convertirBcdAGpio
+ * @brief Convierte un digito en formato BCD a una configuracion de pines definida por el usuario
+ * @param numeroBCD Representa el digito en formato BCD almacenado como un entero sin signo de 8 bits
+ * @param configuracionGpio Vector que almacena la configuracion de pines de salida del digito
+ * @return
+ */
+
+void convertirBcdAGpio(uint8_t numeroBCD, gpioConf_t *configuracionGpio);
+/** @fn uint8_t ConvertirBCDAArray
+ * @brief Convierte un numero decimal de 32bits a un arreglo de digitos que conforman ese numero
+ * @param data numero en formato decimal almacenado como un entero sin signo de 32 bits
+ * @param digits numero en formato decimal que representa la cantidad de digitos que conforman el numero
+ * @param bcd_number Arreglo de numeros enteros de 8bits, donde sera almacenado cada digito del numero original
+ * @return
+ */
+uint8_t convertirBcdAArray(uint32_t data, uint8_t digits, uint8_t *bcd_number);
+
+
+/** @fn void datoAPantalla
+ * @brief Funcion que muestra un entero decimal de 32bits en un display LCD
+ * @param dato Numero en formato decimal almacenado como un entero sin signo de 32 bits
+ * @param digitos Numero en formato decimal que representa la cantidad de digitos que conforman el numero
+ * @param configuracionGpioDigito Vector que almacena la configuracion de pines de salida de BCD del display
+ * @param configuracionGpioCifras Vector que almacena la configuracion de pines de salida referidos a la posicion del digito
+ * @return
+ */
 void datoAPantalla(uint32_t dato, uint8_t digitos, gpioConf_t *configuracionGpioDigito, gpioConf_t *configuracionGpioCifras);
 
 /*==================[external functions definition]==========================*/
@@ -127,7 +176,7 @@ void convertirBcdAGpio(uint8_t numeroBCD, gpioConf_t *configuracionGpio)
 	}
 }
 
-uint8_t convertToBcdArray(uint32_t data, uint8_t digits, uint8_t *bcd_number)
+uint8_t convertirBcdAArray(uint32_t data, uint8_t digits, uint8_t *bcd_number)
 {
 	// data : dato de 32 bits
 	// digits : numero de digitos
@@ -156,7 +205,7 @@ void datoAPantalla(uint32_t dato, uint8_t digitos, gpioConf_t *configuracionGpio
 
 	uint8_t numeroBCD[digitos];
 
-	convertToBcdArray(dato, digitos, &numeroBCD);
+	convertirBcdAArray(dato, digitos, &numeroBCD);
 
 	for (int i = 0; i < digitos; i++)
 	{
