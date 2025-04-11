@@ -125,7 +125,7 @@ void app_main(void)
 		GPIOOff(vector_cifras[i].pin);
 	}
 
-	uint32_t numero = 123;
+	uint32_t numero = 126;
 	uint8_t digitos = 3;
 
 	datoAPantalla(numero, digitos, vector_pines, vector_cifras);
@@ -188,7 +188,7 @@ uint8_t convertirBcdAArray(uint32_t data, uint8_t digits, uint8_t *bcd_number)
 	{
 
 		aux2 = aux1 % 10;
-		bcd_number[i] = aux2;
+		bcd_number[digits-i-1] = aux2;
 		aux1 = aux1 / 10;
 	}
 
