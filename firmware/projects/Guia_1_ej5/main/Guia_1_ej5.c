@@ -55,6 +55,7 @@ void app_main(void)
 	GPIOInit(GPIO_18, GPIO_OUTPUT);
 	GPIOInit(GPIO_9, GPIO_OUTPUT);
 
+
 	gpioConf_t vector_pines[4];
 	vector_pines[0].pin = GPIO_20;
 	vector_pines[1].pin = GPIO_21;
@@ -66,7 +67,20 @@ void app_main(void)
 	vector_cifras[1].pin = GPIO_18;
 	vector_cifras[2].pin = GPIO_9;
 
-	datoAPantalla(325, 3, vector_pines, vector_cifras);
+		for (int i = 0; i < 4; i++)
+	{
+		GPIOOff(vector_pines[i].pin);
+	}
+			for (int i = 0; i < 3; i++)
+	{
+		GPIOOff(vector_cifras[i].pin);
+	}
+
+	uint32_t numero = 123;
+	uint8_t digitos = 3;
+
+	datoAPantalla(numero, digitos, vector_pines, vector_cifras);
+
 }
 
 void convertirBcdAGpio(uint8_t numeroBCD, gpioConf_t *configuracionGpio)
@@ -74,43 +88,42 @@ void convertirBcdAGpio(uint8_t numeroBCD, gpioConf_t *configuracionGpio)
 
 	if (numeroBCD & 1)
 	{
-		GPIOOn(configuracionGpio[3].pin);
-		
-	}
-	else
-	{
-		
-		GPIOOff(configuracionGpio[3].pin);
-	}
-	if (numeroBCD & 2)
-	{
-		
-		GPIOOn(configuracionGpio[2].pin);
-	}
-	else
-	{
-		
-		GPIOOff(configuracionGpio[2].pin);
-	}
-	if (numeroBCD & 4)
-	{
-		
-		GPIOOn(configuracionGpio[1].pin);
-	}
-	else
-	{
-		
-		GPIOOff(configuracionGpio[1].pin);
-	}
-	if (numeroBCD & 8)
-	{
-		
 		GPIOOn(configuracionGpio[0].pin);
 	}
 	else
 	{
-		
+
 		GPIOOff(configuracionGpio[0].pin);
+	}
+	if (numeroBCD & 2)
+	{
+
+		GPIOOn(configuracionGpio[1].pin);
+	}
+	else
+	{
+
+		GPIOOff(configuracionGpio[1].pin);
+	}
+	if (numeroBCD & 4)
+	{
+
+		GPIOOn(configuracionGpio[2].pin);
+	}
+	else
+	{
+
+		GPIOOff(configuracionGpio[2].pin);
+	}
+	if (numeroBCD & 8)
+	{
+
+		GPIOOn(configuracionGpio[3].pin);
+	}
+	else
+	{
+
+		GPIOOff(configuracionGpio[3].pin);
 	}
 }
 
@@ -130,6 +143,11 @@ uint8_t convertToBcdArray(uint32_t data, uint8_t digits, uint8_t *bcd_number)
 		aux1 = aux1 / 10;
 	}
 
+	for (int i = digits - 1; i >= 0; i--)
+	{
+		printf("%d", bcd_number[i]);
+	}
+
 	return 0;
 }
 
@@ -138,22 +156,12 @@ void datoAPantalla(uint32_t dato, uint8_t digitos, gpioConf_t *configuracionGpio
 
 	uint8_t numeroBCD[digitos];
 
-	convertToBcdArray(dato, digitos, numeroBCD);
+	convertToBcdArray(dato, digitos, &numeroBCD);
 
 	for (int i = 0; i < digitos; i++)
 	{
 
 		convertirBcdAGpio(numeroBCD[i], configuracionGpioDigito);
-		// for (int j = 0; j < 4; j++)
-		// {
-		// 	if (configuracionGpioDigito[i].dir == 1)
-		// 	{
-		// 		GPIOOn(configuracionGpioDigito[i].pin);
-		// 	} else {
-		// 		GPIOOff(configuracionGpioDigito[i].pin);
-		// 	}
-		// }
-	
 		GPIOOn(configuracionGpioCifras[i].pin);
 		GPIOOff(configuracionGpioCifras[i].pin);
 	}
