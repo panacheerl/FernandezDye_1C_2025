@@ -125,7 +125,7 @@ void app_main(void)
 		GPIOOff(vector_cifras[i].pin);
 	}
 
-	uint32_t numero = 126;
+	uint32_t numero = 256;
 	uint8_t digitos = 3;
 
 	datoAPantalla(numero, digitos, vector_pines, vector_cifras);
