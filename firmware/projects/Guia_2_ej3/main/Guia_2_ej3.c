@@ -52,23 +52,33 @@ void Prender_leds(int distancia);
 int distancia = 0;
 bool medir = 1;
 bool hold = 0;
-void Medir_distancia(void *param)
+void notificacion()
 {
-
+	vTaskNotifyGiveFromISR(medir_tarea_handle, pdFALSE);
+	vTaskNotifyGiveFromISR(imprimir_tarea_handle, pdFALSE);
+}
+void tarea_medir_distancia(void *param)
+{
+	while (true)
+	{
+		
+	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 	if (medir)
 	{
 		distancia = HcSr04ReadDistanceInCentimeters();
+	}
 	}
 }
 static void tarea_imprimir_distancia(void *pvParameter)
 {
 	while (1)
 	{
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 		if (!hold)
 		{
 			LcdItsE0803Write(distancia);
 			Prender_leds(distancia);
-			vTaskDelay(1000 / portTICK_PERIOD_MS);
+			
 		}
 	}
 }
@@ -97,16 +107,19 @@ void toggle_hold()
 		hold = true;
 }
 
-void recibir_caracter(void *param){
+void recibir_caracter(void *param)
+{
 	uint8_t caracter;
 	UartReadByte(UART_PC, &caracter);
-	if (caracter == 'o') {
+	if (caracter == 'o')
+	{
 		toggle_medir();
-	} else if (caracter == 'h') {
+	}
+	else if (caracter == 'h')
+	{
 		toggle_hold();
 	};
-	UartSendByte(UART_PC,(char*)&caracter);
-
+	UartSendByte(UART_PC, (char *)&caracter);
 }
 
 /*==================[external functions definition]==========================*/
@@ -124,7 +137,7 @@ void app_main(void)
 	SwitchesInit();
 	LedsInit();
 	timer_config_t timer_1seg = {
-		.func_p = Medir_distancia,
+		.func_p = notificacion,
 		.param_p = NULL,
 		.timer = TIMER_A,
 		.period = 1000000};
@@ -135,9 +148,10 @@ void app_main(void)
 	SwitchActivInt(SWITCH_1, toggle_medir, NULL);
 	SwitchActivInt(SWITCH_2, toggle_hold, NULL);
 
-	xTaskCreate(&tarea_imprimir_distancia, "imprimir_distancia", 2048, NULL, 5, &imprimir_tarea_handle);
+	xTaskCreate(&tarea_medir_distancia, "medir_distancia", 512, NULL, 5, &medir_tarea_handle);
+	xTaskCreate(&tarea_imprimir_distancia, "imprimir_distancia", 1024, NULL, 5, &imprimir_tarea_handle);
 	xTaskCreate(&enviar_distancia, "UART", 512, &mi_uart, 5, &uart_task_handle);
-		TimerStart(timer_1seg.timer);
+	TimerStart(timer_1seg.timer);
 }
 
 void Prender_leds(int distancia)
