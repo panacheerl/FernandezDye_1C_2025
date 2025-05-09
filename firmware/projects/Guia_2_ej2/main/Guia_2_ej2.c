@@ -43,18 +43,17 @@ TaskHandle_t imprimir_tarea_handle = NULL;
 TaskHandle_t teclas_tarea_handle = NULL;
 /*==================[internal functions declaration]=========================*/
 void Prender_leds(int distancia);
-bool medir = true;
-bool hold = false;
-int distancia = 0;
 
-void Medir_distancia(void* param)
+int distancia = 0;
+	bool medir = 1;
+	bool hold = 0;
+void Medir_distancia(void *param)
 {
-	
-		if (medir)
-		{
-			distancia = HcSr04ReadDistanceInCentimeters();
-		}
-	
+
+	if (medir)
+	{
+		distancia = HcSr04ReadDistanceInCentimeters();
+	}
 }
 static void tarea_imprimir_distancia(void *pvParameter)
 {
@@ -68,7 +67,7 @@ static void tarea_imprimir_distancia(void *pvParameter)
 		}
 	}
 }
-static void tarea_leer_teclas(void *pvParameter)
+/*static void tarea_leer_teclas(void *pvParameter)
 {
 	while (1)
 	{
@@ -96,6 +95,20 @@ static void tarea_leer_teclas(void *pvParameter)
 		}
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
+} */
+void toggle_medir(void *pvParameter)
+{
+	if (medir)
+		medir = false;
+	else
+		medir = true;
+}
+void toggle_hold(void *pvParameter)
+{
+	if (hold)
+		hold = false;
+	else
+		hold = true;
 }
 
 /*==================[external functions definition]==========================*/
@@ -111,15 +124,15 @@ void app_main(void)
 		.param_p = NULL,
 		.timer = TIMER_A,
 		.period = 1000000};
-	
-
 
 	TimerInit(&timer_1seg);
 
+	SwitchActivInt(SWITCH_1, toggle_medir, NULL);
+	SwitchActivInt(SWITCH_2, toggle_hold, NULL);
 
 	xTaskCreate(&tarea_imprimir_distancia, "imprimir_distancia", 2048, NULL, 5, &imprimir_tarea_handle);
-	xTaskCreate(&tarea_leer_teclas, "leer_teclas", 2048, NULL, 5, &teclas_tarea_handle);
-		TimerStart(timer_1seg.timer);
+//	xTaskCreate(&tarea_leer_teclas, "leer_teclas", 2048, NULL, 5, &teclas_tarea_handle);
+	TimerStart(timer_1seg.timer);
 }
 
 void Prender_leds(int distancia)
