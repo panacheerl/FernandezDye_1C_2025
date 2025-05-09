@@ -34,6 +34,8 @@
 #include "switch.h"
 #include "led.h"
 #include "timer_mcu.h"
+#include "uart_mcu.h"
+#include "string.h"
 
 /*==================[macros and definitions]=================================*/
 
@@ -41,12 +43,15 @@
 TaskHandle_t medir_tarea_handle = NULL;
 TaskHandle_t imprimir_tarea_handle = NULL;
 TaskHandle_t teclas_tarea_handle = NULL;
+
+TaskHandle_t uart_task_handle = NULL;
+
 /*==================[internal functions declaration]=========================*/
 void Prender_leds(int distancia);
 
 int distancia = 0;
-	bool medir = 1;
-	bool hold = 0;
+bool medir = 1;
+bool hold = 0;
 void Medir_distancia(void *param)
 {
 
@@ -67,15 +72,24 @@ static void tarea_imprimir_distancia(void *pvParameter)
 		}
 	}
 }
+void enviar_distancia(void *param)
+{
+	while (true)
+	{
+		UartSendString(UART_PC, (char *)UartItoa(distancia, 10));
+		UartSendString(UART_PC, " cm\n\r");
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
+}
 
-void toggle_medir(void *pvParameter)
+void toggle_medir()
 {
 	if (medir)
 		medir = false;
 	else
 		medir = true;
 }
-void toggle_hold(void *pvParameter)
+void toggle_hold()
 {
 	if (hold)
 		hold = false;
@@ -83,9 +97,27 @@ void toggle_hold(void *pvParameter)
 		hold = true;
 }
 
+void recibir_caracter(void *param){
+	uint8_t caracter;
+	UartReadByte(UART_PC, &caracter);
+	if (caracter == 'o') {
+		toggle_medir();
+	} else if (caracter == 'h') {
+		toggle_hold();
+	};
+	UartSendByte(UART_PC,(char*)&caracter);
+
+}
+
 /*==================[external functions definition]==========================*/
 void app_main(void)
 {
+
+	serial_config_t mi_uart = {
+		.port = UART_PC,
+		.baud_rate = 9600,
+		.func_p = recibir_caracter,
+		.param_p = NULL};
 
 	HcSr04Init(GPIO_3, GPIO_2);
 	LcdItsE0803Init();
@@ -98,12 +130,14 @@ void app_main(void)
 		.period = 1000000};
 
 	TimerInit(&timer_1seg);
+	UartInit(&mi_uart);
 
 	SwitchActivInt(SWITCH_1, toggle_medir, NULL);
 	SwitchActivInt(SWITCH_2, toggle_hold, NULL);
 
 	xTaskCreate(&tarea_imprimir_distancia, "imprimir_distancia", 2048, NULL, 5, &imprimir_tarea_handle);
-	TimerStart(timer_1seg.timer);
+	xTaskCreate(&enviar_distancia, "UART", 512, &mi_uart, 5, &uart_task_handle);
+		TimerStart(timer_1seg.timer);
 }
 
 void Prender_leds(int distancia)

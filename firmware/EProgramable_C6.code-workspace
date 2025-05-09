@@ -35,6 +35,9 @@
         },
         {
             "path": "projects/Guia_2_ej2"
+        },
+        {
+            "path": "projects/Guia_2_ej3"
         }
     ],
     "settings": {
@@ -90,7 +93,9 @@
             "soc_caps.h": "c",
             "mpu6050.h": "c",
             "i2c_mcu.h": "c",
-            "random": "c"
+            "random": "c",
+            "string.h": "c",
+            "strings.h": "c"
         },
     },
     "tasks": {
