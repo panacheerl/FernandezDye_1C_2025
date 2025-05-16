@@ -59,9 +59,10 @@ void enviar_dato(void *param)
 	while (true)
 	{
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-		UartSendString(UART_PC, ">Potenciometro:");
+		UartSendString(UART_PC, "$");
 		UartSendString(UART_PC, (char *)UartItoa(valor, 10));
-		UartSendString(UART_PC, "\r\n");
+		UartSendString(UART_PC, ";");
+		
 		
 	}
 }
@@ -80,7 +81,7 @@ void app_main(void)
 		.func_p = notificacion,
 		.param_p = NULL,
 		.timer = TIMER_A,
-		.period = 20000};
+		.period = 2000};
 
 	analog_input_config_t input_analogico = {
 		.func_p = NULL,
