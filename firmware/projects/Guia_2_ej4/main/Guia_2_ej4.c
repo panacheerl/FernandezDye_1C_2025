@@ -1,26 +1,28 @@
-/*! @mainpage Template
+/*! @mainpage Proyecto 2, Ejercicio 4: Proyecto osciloscopio
  *
  * @section genDesc General Description
  *
- * This section describes how the program works.
- *
- * <a href="https://drive.google.com/...">Operation Example</a>
+ * Se diseño e implemento un dispositivo que permite leer señales analogicas mediante el ESP-EDU
+ * y representarlas mediante un graficador por puerto serie en una computadora. Adicionalmente a esto
+ * se implemento una salida analogica que muestre un ECG previamente muestreado almacenado en memoria.
  *
  * @section hardConn Hardware Connection
  *
- * |    Peripheral  |   ESP32   	|
- * |:--------------:|:--------------|
- * | 	PIN_X	 	| 	GPIO_X		|
+ * |    Funcion				|   ESP-EDU   	|
+ * |:----------------------:|:--------------|
+ * | 	Entrada analogica 	| 		CH3		|
+ * | 	Salida analogica 	| 		CH0		|
  *
  *
  * @section changelog Changelog
  *
  * |   Date	    | Description                                    |
  * |:----------:|:-----------------------------------------------|
- * | 12/09/2023 | Document creation		                         |
+ * | 23/05/2025 | Creacion de documentacion                      |
  *
- * @author Albano Peñalva (albano.penalva@uner.edu.ar)
  *
+ * @author Fernandez Dye Juan Francisco (kioru.juan@gmail.com) 
+ * 
  */
 
 /*==================[inclusions]=============================================*/
@@ -37,10 +39,16 @@
 TaskHandle_t medir_tarea_handle = NULL;
 TaskHandle_t uart_tarea_handle = NULL;
 TaskHandle_t timer_ecg_handle = NULL;
-uint16_t valor = 0;
-
 TaskHandle_t main_task_handle = NULL;
 
+/** @def valor
+ *  @brief Valor entero que representa la tension medida por la entrada analogica
+ */
+uint16_t valor = 0;
+
+/** @def ECG
+ *  @brief Cadena de valores que corresponden a la forma de onda del ECG previamente muestreado
+ */
 unsigned char ECG[] = {
 17,17,17,17,17,17,17,17,17,17,17,18,18,18,17,17,17,17,17,17,17,18,18,18,18,18,18,18,17,17,16,16,16,16,17,17,18,18,18,17,17,17,17,
 18,18,19,21,22,24,25,26,27,28,29,31,32,33,34,34,35,37,38,37,34,29,24,19,15,14,15,16,17,17,17,16,15,14,13,13,13,13,13,13,13,12,12,
@@ -49,15 +57,29 @@ unsigned char ECG[] = {
 133,129,123,117,109,101,92,84,77,70,64,58,52,47,42,39,36,34,31,30,28,27,26,25,25,25,25,25,25,25,25,24,24,24,24,25,25,25,25,25,25,25,
 24,24,24,24,24,24,24,24,23,23,22,22,21,21,21,20,20,20,20,20,19,19,18,18,18,19,19,19,19,18,17,17,18,18,18,18,18,18,18,18,17,17,17,17,
 17,17,17} ;
+
+/** @def contador
+ *  @brief Valor entero que representa la posicion en la cadena de valores de ECG
+ */
 int contador = 0;
 
 /*==================[internal functions declaration]=========================*/
 
+
+/** @fn void notificacion_graficador
+ * @brief Envia una notificacion a la tarea de medir y la tarea de enviar el valor por puerto serie, lo que las pasa de suspendidas a listas para ser reanudadas.
+ * @return
+ */
 void notificacion_graficador()
 {
 	vTaskNotifyGiveFromISR(medir_tarea_handle, pdFALSE);
 	vTaskNotifyGiveFromISR(uart_tarea_handle, pdFALSE);
 }
+
+/** @fn void tarea_medir
+ * @brief Lee el valor de tension en la entrada analogica y lo almacena en memoria.
+ * @return
+ */
 void tarea_medir(void *param)
 {
 	while (true)
@@ -67,6 +89,11 @@ void tarea_medir(void *param)
 		AnalogInputReadSingle(CH3, &valor);
 	}
 }
+
+/** @fn void enviar_dato
+ * @brief Envia el valor almacenado de tension en memoria por el puerto serie mediante el protocolo UART.
+ * @return
+ */
 void enviar_dato(void *param)
 {
 	while (true)
@@ -77,11 +104,20 @@ void enviar_dato(void *param)
 		UartSendString(UART_PC, ";");
 	}
 }
+
+/** @fn void notificacion_ecg
+ * @brief Envia una notificacion a la tarea responsable de mostrar los valores de ECG por la salida analogica
+ * @return
+ */
 void notificacion_ecg()
 {
 	vTaskNotifyGiveFromISR(timer_ecg_handle, pdFALSE);
 }
 
+/** @fn void tarea_timer_ecg
+ * @brief Cambia los valores de la salida analogica, segun la cadena de valores almacenada en memoria.
+ * @return
+ */
 void tarea_timer_ecg()
 {
 	while (true)

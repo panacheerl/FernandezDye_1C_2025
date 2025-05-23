@@ -1,25 +1,47 @@
-/*! @mainpage Template
+/*! @mainpage Proyecto 2, Ejercicio 3: Medidor de distancia por ultrasonido c/interrupciones y puerto serie
  *
  * @section genDesc General Description
  *
- * This section describes how the program works.
+ * Se diseño un dispositivo que permite leer una distancia mediante el sensor HC-SR04
+ * y muestra el valor en una pantalla LCD en cm mientras envia dicha lectura a una computadora
+ * por medio de un puerto serie. En adicion a esto, se utilizan los leds de la plaqueta EDU-ESP
+ * de forma que indiquen la distancia que esta siendo medida encendiendo un led por cada 10cm
+ * de distancia, con un maximo de 30cm. Por otro lado, se implementaron las teclas de la
+ * EDU-ESP, de forma que la tecla 1 active y detenga la medicion, y la tecla 2 mantenga el dato
+ * en pantalla sin dejar de leer. Por ultimo, enviar por terminal la letra o/h realiza la misma
+ * funcion que la tecla 1 y 2 respectivamente.
  *
- * <a href="https://drive.google.com/...">Operation Example</a>
  *
  * @section hardConn Hardware Connection
  *
- * |    Peripheral  |   ESP32   	|
+ * |    Display 	 |   ESP32   	|
  * |:--------------:|:--------------|
- * | 	PIN_X	 	| 	GPIO_X		|
+ * | 	D1	 		| 	GPIO_20		|
+ * | 	D2	 		| 	GPIO_21		|
+ * | 	D3	 		| 	GPIO_22		|
+ * | 	D4	 		| 	GPIO_23		|
+ * | 	SEL_1 		|	GPIO_19		|
+ * | 	SEL_2 		|	GPIO_18		|
+ * | 	SEL_3 		|	GPIO_9		|
+ * | 	+5V	 		|	+5V			|
+ * | 	GND	 		|	GND			|
+ *
+ *
+ * |    HC-SR04  	|   ESP32   	|
+ * |:--------------:|:--------------|
+ * | 	ECHO	 	| 	GPIO_3		|
+ * | 	TRIGGER	 	| 	GPIO_2		|
+ * | 	+5v	 		| 	+5V			|
+ * | 	GND		 	| 	GND			|
  *
  *
  * @section changelog Changelog
  *
  * |   Date	    | Description                                    |
  * |:----------:|:-----------------------------------------------|
- * | 12/09/2023 | Document creation		                         |
+ * | 23/05/2025 | Creacion de documentacion                           |
  *
- * @author Albano Peñalva (albano.penalva@uner.edu.ar)
+ * @author Fernandez Dye Juan Francisco (kioru.juan@gmail.com)
  *
  */
 
@@ -43,32 +65,62 @@
 TaskHandle_t medir_tarea_handle = NULL;
 TaskHandle_t imprimir_tarea_handle = NULL;
 TaskHandle_t teclas_tarea_handle = NULL;
-
 TaskHandle_t uart_task_handle = NULL;
 
-/*==================[internal functions declaration]=========================*/
-void Prender_leds(int distancia);
-
+/** @def distancia
+ *  @brief Valor entero que representa la distancia en cm medida por el sensor
+ */
 int distancia = 0;
+
+/** @def medir
+ *  @brief Valor booleano que representa si el modo medir esta activado o desactivado
+ */
 bool medir = 1;
+
+/** @def hold
+ *  @brief Valor booleano que representa si el modo mantener esta activado o desactivado
+ */
 bool hold = 0;
+
+/*==================[internal functions declaration]=========================*/
+
+/** @fn void Prender_leds
+ * @brief Representa el valor de distancia almacenado en un conjunto de leds, de forma que enciende un led cada 10cm.
+ * @return
+ */
+void Prender_leds();
+
+/** @fn void notificacion
+ * @brief Envia una notificacion a la tarea de medir y la tarea de imprimir, lo que las pasa de suspendidas a listas para ser reanudadas.
+ * @return
+ */
 void notificacion()
 {
 	vTaskNotifyGiveFromISR(medir_tarea_handle, pdFALSE);
 	vTaskNotifyGiveFromISR(imprimir_tarea_handle, pdFALSE);
 }
+
+/** @fn void tarea_medir_distancia
+ * @brief Ordena al sensor leer la distancia en centimetros y la almacena en memoria.
+ * @return
+ */
 void tarea_medir_distancia(void *param)
 {
 	while (true)
 	{
-		
-	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-	if (medir)
-	{
-		distancia = HcSr04ReadDistanceInCentimeters();
-	}
+
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		if (medir)
+		{
+			distancia = HcSr04ReadDistanceInCentimeters();
+		}
 	}
 }
+
+/** @fn void tarea_imprimir_distancia
+ * @brief Muestra el valor almacenado en memoria en el display LCD, y llama a la funcion prender_leds.
+ * @return
+ */
 static void tarea_imprimir_distancia(void *pvParameter)
 {
 	while (1)
@@ -77,11 +129,15 @@ static void tarea_imprimir_distancia(void *pvParameter)
 		if (!hold)
 		{
 			LcdItsE0803Write(distancia);
-			Prender_leds(distancia);
-			
+			Prender_leds();
 		}
 	}
 }
+
+/** @fn void enviar_distancia
+ * @brief Enviar el valor almacenado de distancia por el puerto serie mediante el protocolo UART
+ * @return
+ */
 void enviar_distancia(void *param)
 {
 	while (true)
@@ -92,6 +148,10 @@ void enviar_distancia(void *param)
 	}
 }
 
+/** @fn void toggle_medir
+ * @brief Invierte el valor de la variable medir
+ * @return
+ */
 void toggle_medir()
 {
 	if (medir)
@@ -99,6 +159,11 @@ void toggle_medir()
 	else
 		medir = true;
 }
+
+/** @fn void toggle_medir
+ * @brief Invierte el valor de la variable hold
+ * @return
+ */
 void toggle_hold()
 {
 	if (hold)
@@ -107,6 +172,10 @@ void toggle_hold()
 		hold = true;
 }
 
+/** @fn void recibir_caracter
+ * @brief Lee un caracter desde el puerto serie mediante el protocolo UART.
+ * @return
+ */
 void recibir_caracter(void *param)
 {
 	uint8_t caracter;
@@ -119,7 +188,6 @@ void recibir_caracter(void *param)
 	{
 		toggle_hold();
 	};
-	UartSendByte(UART_PC, (char *)&caracter);
 }
 
 /*==================[external functions definition]==========================*/
@@ -154,7 +222,7 @@ void app_main(void)
 	TimerStart(timer_1seg.timer);
 }
 
-void Prender_leds(int distancia)
+void Prender_leds()
 {
 	if (distancia < 10)
 	{
