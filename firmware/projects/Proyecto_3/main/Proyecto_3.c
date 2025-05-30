@@ -37,15 +37,13 @@
 #define pulgar 0
 #define indice 1
 #define numero_dedos 2
-#define CH0 'p'
-#define CH1 'i'
 
 /*==================[internal data definition]===============================*/
 
 bool enviar_datos = true;
 uint16_t maxima_extension = 3300;
 uint16_t mediciones[numero_dedos];
-char mano[numero_dedos] = {'p', 'i'};
+adc_ch_t canal = 1;
 
 TaskHandle_t uart_tarea_handle = NULL;
 TaskHandle_t timer_medicion_handle = NULL;
@@ -57,25 +55,42 @@ void notificacion_medir()
 {
 	vTaskNotifyGiveFromISR(timer_medicion_handle, pdFALSE);
 }
-void notificacion_datos()
+
+
+
+
+void tarea_enviar_datos()
 {
-	vTaskNotifyGiveFromISR(uart_tarea_handle, pdFALSE);
+
+	while (1)
+	{
+		if (enviar_datos == true)
+		{
+
+			ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+			UartSendString(UART_PC, "$");
+			UartSendString(UART_PC, (char *)UartItoa(mediciones[0], 10));
+			UartSendString(UART_PC, " ");
+			UartSendString(UART_PC, (char *)UartItoa(mediciones[1], 10));
+			UartSendString(UART_PC, ";");
+		}
+	}
 }
 
-void medir_dedo()
+void medir_dedos()
 {
 	while (1)
 	{
-		for (uint8_t dedo = 0; dedo<numero_dedos ; dedo++) {
-		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-		AnalogInputReadSingle(mano[dedo], &mediciones[dedo]);
-		dedo++;
-		}
-		
 
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		for (int i = 0; i < numero_dedos; i++)
+		{
+			adc_ch_t canal = i;
+			AnalogInputReadSingle(canal, &mediciones[i]);
+		}
+		vTaskNotifyGiveFromISR(uart_tarea_handle, pdFALSE);
 	}
 }
-//void enviar_datos(){}
 
 void toggle_enviar_datos()
 {
@@ -86,7 +101,7 @@ void app_main(void)
 
 	serial_config_t mi_uart = {
 		.port = UART_PC,
-		.baud_rate = 115200,
+		.baud_rate = 9600,
 		.func_p = NULL,
 		.param_p = NULL};
 
@@ -94,13 +109,13 @@ void app_main(void)
 		.func_p = notificacion_medir,
 		.param_p = NULL,
 		.timer = TIMER_A,
-		.period = 2000};
+		.period = 100000};
 
-	timer_config_t timer_datos = {
-		.func_p = notificacion_datos,
-		.param_p = NULL,
-		.timer = TIMER_B,
-		.period = 2000};
+	// timer_config_t timer_datos = {
+	// 	.func_p = notificacion_datos,
+	// 	.param_p = NULL,
+	// 	.timer = TIMER_B,
+	// 	.period = 200000};
 
 	analog_input_config_t input_dedo_1 = {
 		.func_p = NULL,
@@ -116,9 +131,18 @@ void app_main(void)
 		.sample_frec = 0,
 		.param_p = NULL};
 
-	// xTaskCreate(&enviar_dato, "UART", 1024, &mi_uart, 5, &uart_tarea_handle);
+
 
 	TimerInit(&timer_medicion);
+	//TimerInit(&timer_datos);
+	AnalogInputInit(&input_dedo_1);
+	AnalogInputInit(&input_dedo_2);
+
+	UartInit(&mi_uart);
+	xTaskCreate(&medir_dedos, "medir", 2048, NULL, 5, &timer_medicion_handle);
+	xTaskCreate(&tarea_enviar_datos, "UART", 1024, &mi_uart, 5, &uart_tarea_handle);
+
 	TimerStart(timer_medicion.timer);
+	//TimerStart(timer_datos.timer);
 }
 /*==================[end of file]============================================*/
