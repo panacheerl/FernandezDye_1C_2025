@@ -56,9 +56,6 @@ void notificacion_medir()
 	vTaskNotifyGiveFromISR(timer_medicion_handle, pdFALSE);
 }
 
-
-
-
 void tarea_enviar_datos()
 {
 
@@ -69,9 +66,13 @@ void tarea_enviar_datos()
 
 			ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 			UartSendString(UART_PC, "$");
-			UartSendString(UART_PC, (char *)UartItoa(mediciones[0], 10));
-			UartSendString(UART_PC, " ");
-			UartSendString(UART_PC, (char *)UartItoa(mediciones[1], 10));
+
+			for (int i = 0; i < numero_dedos; i++)
+			{
+				if (i > 0)
+					UartSendString(UART_PC, " ");
+				UartSendString(UART_PC, (char *)UartItoa(mediciones[i], 10));
+			}
 			UartSendString(UART_PC, ";");
 		}
 	}
@@ -111,11 +112,7 @@ void app_main(void)
 		.timer = TIMER_A,
 		.period = 100000};
 
-	// timer_config_t timer_datos = {
-	// 	.func_p = notificacion_datos,
-	// 	.param_p = NULL,
-	// 	.timer = TIMER_B,
-	// 	.period = 200000};
+
 
 	analog_input_config_t input_dedo_1 = {
 		.func_p = NULL,
@@ -131,10 +128,8 @@ void app_main(void)
 		.sample_frec = 0,
 		.param_p = NULL};
 
-
-
 	TimerInit(&timer_medicion);
-	//TimerInit(&timer_datos);
+
 	AnalogInputInit(&input_dedo_1);
 	AnalogInputInit(&input_dedo_2);
 
@@ -143,6 +138,6 @@ void app_main(void)
 	xTaskCreate(&tarea_enviar_datos, "UART", 1024, &mi_uart, 5, &uart_tarea_handle);
 
 	TimerStart(timer_medicion.timer);
-	//TimerStart(timer_datos.timer);
+
 }
 /*==================[end of file]============================================*/
