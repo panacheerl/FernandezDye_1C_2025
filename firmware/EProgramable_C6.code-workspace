@@ -101,7 +101,8 @@
             "i2c_mcu.h": "c",
             "random": "c",
             "string.h": "c",
-            "strings.h": "c"
+            "strings.h": "c",
+            "ble_mcu.h": "c"
         },
     },
     "tasks": {

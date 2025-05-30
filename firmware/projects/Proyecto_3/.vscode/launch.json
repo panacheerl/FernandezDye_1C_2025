@@ -1,25 +1,49 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "type": "gdbtarget",
-      "request": "attach",
-      "name": "Debug ESP32",
-      "program": "${workspaceFolder}/build/${command:espIdf.getProjectName}.elf",
-      "initCommands": [
-        "set remote hardware-watchpoint-limit {IDF_TARGET_CPU_WATCHPOINT_NUM}",
-        "mon reset halt",
-        "maintenance flush register-cache",
-        "thb app_main"
-      ],
-      "gdb": "${command:espIdf.getToolchainGdb}",
-      "target": {
-        "connectCommands": [
-          "set remotetimeout 20",
-          "-target-select extended-remote localhost:3333"
-        ]
-      }
-    }
-  ],
-  "idf.adapterTargetName": "esp32c6"
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "gdbtarget",
+            "request": "attach",
+            "name": "Debug ESP32",
+            "program": "${workspaceFolder}/build/${command:espIdf.getProjectName}.elf",
+            "initCommands": [
+                "set remote hardware-watchpoint-limit {IDF_TARGET_CPU_WATCHPOINT_NUM}",
+                "mon reset halt",
+                "maintenance flush register-cache",
+                "thb app_main"
+            ],
+            "gdb": "${command:espIdf.getToolchainGdb}",
+            "target": {
+                "connectCommands": [
+                    "set remotetimeout 20",
+                    "-target-select extended-remote localhost:3333"
+                ]
+            }
+        },
+        {
+            "name": "(gdb) Iniciar",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "Escriba el nombre del programa; por ejemplo, ${workspaceFolder}/a.out.",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Habilitar la impresión con sangría para gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Establecer tipo de desensamblado en Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ],
+    "idf.adapterTargetName": "esp32c6"
 }
