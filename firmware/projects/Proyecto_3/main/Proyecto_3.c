@@ -54,7 +54,7 @@ uint16_t maxima_extension = 3300;
 uint16_t mediciones[numero_dedos];
 adc_ch_t canal = 1;
 
-TaskHandle_t uart_tarea_handle = NULL;
+TaskHandle_t enviar_datos_tarea_handle = NULL;
 TaskHandle_t timer_medicion_handle = NULL;
 TaskHandle_t main_task_handle = NULL;
 
@@ -69,11 +69,13 @@ void tarea_enviar_datos()
 {
 
 	while (1)
-	{
+	{ 
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
 		if (enviar_datos == true)
 		{
 			char msg[30];
-			ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+			
 			// UartSendString(UART_PC, "$");
 
 			// for (int i = 0; i < numero_dedos; i++)
@@ -84,7 +86,7 @@ void tarea_enviar_datos()
 			// }
 			// UartSendString(UART_PC, ";");
 
-			    sprintf(msg, "1: %d, 2: %d\n", mediciones[0], mediciones[1]);
+			    sprintf(msg, "*I%d* *M%d*\n", mediciones[0], mediciones[1]);
     		BleSendString(msg);
 		}
 	}
@@ -101,7 +103,7 @@ void medir_dedos()
 			adc_ch_t canal = i;
 			AnalogInputReadSingle(canal, &mediciones[i]);
 		}
-		vTaskNotifyGiveFromISR(uart_tarea_handle, pdFALSE);
+		vTaskNotifyGiveFromISR(enviar_datos_tarea_handle, pdFALSE);
 	}
 }
 
@@ -144,7 +146,7 @@ void toggle_enviar_datos()
 // 	}
 //     NeoPixelAllColor(NeoPixelRgb2Color(red, green, blue));
 //     /* Se envía una realimentación de los valores actuales de brillo del LED */
-//     sprintf(msg, "R: %d, G: %d, B: %d\n", red, green, blue);
+//     sprintf(msg, "R: %d, G: %d, B: %d pan\n ", red, green, blue);
 //     BleSendString(msg);
 // }
 
@@ -152,11 +154,11 @@ void toggle_enviar_datos()
 void app_main(void)
 {
 
-	serial_config_t mi_uart = {
-		.port = UART_PC,
-		.baud_rate = 9600,
-		.func_p = NULL,
-		.param_p = NULL};
+	// serial_config_t mi_uart = {
+	// 	.port = UART_PC,
+	// 	.baud_rate = 9600,
+	// 	.func_p = NULL,
+	// 	.param_p = NULL};
 
 	timer_config_t timer_medicion = {
 		.func_p = notificacion_medir,
@@ -187,9 +189,9 @@ void app_main(void)
 	AnalogInputInit(&input_dedo_1);
 	AnalogInputInit(&input_dedo_2);
 
-	UartInit(&mi_uart);
+	//UartInit(&mi_uart);
 	xTaskCreate(&medir_dedos, "medir", 2048, NULL, 5, &timer_medicion_handle);
-	//xTaskCreate(&tarea_enviar_datos, "UART", 1024, &mi_uart, 5, &uart_tarea_handle);
+	xTaskCreate(&tarea_enviar_datos, "DATOS", 2048, NULL, 5, &enviar_datos_tarea_handle);
 
 	TimerStart(timer_medicion.timer);
 
@@ -199,7 +201,7 @@ void app_main(void)
 
  
     ble_config_t ble_configuration = {
-        "ESP_Pancho",
+        "ESP_J_F",
         BLE_NO_INT
     };
 
