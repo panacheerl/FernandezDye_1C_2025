@@ -94,8 +94,13 @@ void enviar_hyt_UART(void *param)
 		UartSendString(msg);
 		if (hum > 85 and temp < 2)
 		{
-
+			LedOn(LED_3);
+			UartSendString(" - ");
 			UartSendString(Riesgo_Nevada);
+		}
+		else
+		{
+			LedOff(LED_3);
 		}
 	}
 }
@@ -113,11 +118,17 @@ void enviar_rad_UART(void *param)
 
 		if (rad > 40)
 		{
-
+			LedOn(LED_2);
+			UartSendString(" - ");
 			UartSendString(Riesgo_Rad);
+		}
+		else
+		{
+			LedOff(LED_3);
 		}
 	}
 }
+
 
 void Notificacion_Timer_1seg(void *param)
 {
@@ -156,10 +167,8 @@ void app_main(void)
 
 	AnalogInputInit(&entrada_analogica);
 
-
-	xTaskCreate(&enviar_hyt_UART, "hyt", 1024, mi_uart, 5, &humedad_temp_tarea_handle);
+	xTaskCreate(&enviar_hyt_UART, "hyt", 1024, &mi_uart, 5, &humedad_temp_tarea_handle);
 	xTaskCreate(&enviar_rad_UART, "rad", 1024, &mi_uart, 5, &radiacion_tarea_handle);
 }
-
 
 /*==================[end of file]============================================*/
