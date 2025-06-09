@@ -55,6 +55,8 @@ float temp = 0.0;
 float hum = 0.0;
 uint16_t rad = 0;
 
+bool dispositivo_funcionando = true;
+
 serial_config_t mi_uart = {
 	.port = UART_PC,
 	.baud_rate = 115200,
@@ -95,12 +97,14 @@ void enviar_hyt_UART(void *param)
 		if (hum > 85 and temp < 2)
 		{
 			LedOn(LED_3);
+			LedOff(LED_1);
 			UartSendString(" - ");
 			UartSendString(Riesgo_Nevada);
 		}
 		else
 		{
 			LedOff(LED_3);
+			LedOn(LED_1);
 		}
 	}
 }
@@ -119,24 +123,27 @@ void enviar_rad_UART(void *param)
 		if (rad > 40)
 		{
 			LedOn(LED_2);
+			LedOff(LED_1);
 			UartSendString(" - ");
 			UartSendString(Riesgo_Rad);
 		}
 		else
 		{
 			LedOff(LED_3);
+			LedOn(LED_1);
 		}
 	}
 }
 
-
 void Notificacion_Timer_1seg(void *param)
 {
-	vTaskNotifyGiveFromISR(enviar_hyt_UART, pdFALSE);
+	if (dispositivo_funcionando)
+		vTaskNotifyGiveFromISR(enviar_hyt_UART, pdFALSE);
 }
 void Notificacion_Timer_5seg(void *param)
 {
-	vTaskNotifyGiveFromISR(enviar_rad_UART, pdFALSE);
+	if (dispositivo_funcionando)
+		vTaskNotifyGiveFromISR(enviar_rad_UART, pdFALSE);
 }
 
 void Medir_Temp_Hum(void *param)
@@ -150,6 +157,15 @@ void Medir_Radiacion(void *param)
 	uint16_t aux = 0;
 	AnalogInputReadSingle(entrada_analogica.input, &aux);
 	rad = aux * 100 / 3300;
+}
+
+void encender()
+{
+	dispositivo_funcionando = true;
+}
+void apagar()
+{
+	dispositivo_funcionando = false;
 }
 
 /*==================[external functions definition]==========================*/
@@ -169,6 +185,9 @@ void app_main(void)
 
 	xTaskCreate(&enviar_hyt_UART, "hyt", 1024, &mi_uart, 5, &humedad_temp_tarea_handle);
 	xTaskCreate(&enviar_rad_UART, "rad", 1024, &mi_uart, 5, &radiacion_tarea_handle);
+
+	SwitchActivInt(SWITCH_1 encender, false, NULL);
+	SwitchActivInt(SWITCH_2 apagar, false, NULL);
 }
 
 /*==================[end of file]============================================*/
