@@ -108,7 +108,8 @@
             "random": "c",
             "string.h": "c",
             "strings.h": "c",
-            "ble_mcu.h": "c"
+            "ble_mcu.h": "c",
+            "dht11.h": "c"
         },
     },
     "tasks": {
