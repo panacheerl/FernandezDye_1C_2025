@@ -12,8 +12,8 @@
  * |    Funcion				|   ESP-EDU   	|
  * |:----------------------:|:--------------|
  * | 	Entrada analogica 	| 		CH0		|
- * 
- * 
+ *
+ *
  * |   	DHT11		|   ESP-EDU 	|
  * |:--------------:|:--------------|
  * | 	VCC     	|	3V3     	|
@@ -118,7 +118,6 @@ void Medir_Radiacion()
 	rad = aux * 100 / 3300;
 }
 
-
 /** @fn void encender
  * @brief Funcion que cambia el estado del dispositivo a encendido.
  * @return
@@ -151,12 +150,15 @@ void enviar_hyt_UART()
 		char msg[30];
 		sprintf(msg, Temp_Humedad, temp, hum);
 		UartSendString(UART_PC, msg);
-		if (hum > 85) if (temp < 2)
+		if (hum > 85)
 		{
-			LedOn(LED_3);
-			LedOff(LED_1);
-			UartSendString(UART_PC, " - ");
-			UartSendString(UART_PC, Riesgo_Nevada);
+			if (temp < 2)
+			{
+				LedOn(LED_3);
+				LedOff(LED_1);
+				UartSendString(UART_PC, " - ");
+				UartSendString(UART_PC, Riesgo_Nevada);
+			}
 		}
 		else
 		{
@@ -196,7 +198,6 @@ void enviar_rad_UART()
 	}
 }
 
-
 /** @fn void Notificacion_Timer_1seg
  * @brief Funcion que envia cambia el estado de la tarea asignada a la humedad y temperatura.
  * @return
@@ -217,29 +218,27 @@ void Notificacion_Timer_5seg(void *param)
 		vTaskNotifyGiveFromISR(enviar_rad_UART, pdFALSE);
 }
 
-
-
 /*==================[external functions definition]==========================*/
 void app_main(void)
 {
 
 	serial_config_t mi_uart = {
-	.port = UART_PC,
-	.baud_rate = 115200,
-	.func_p = NULL,
-	.param_p = NULL};
+		.port = UART_PC,
+		.baud_rate = 115200,
+		.func_p = NULL,
+		.param_p = NULL};
 
-timer_config_t timer1seg = {
-	.timer = TIMER_A,
-	.period = 10000,
-	.func_p = Notificacion_Timer_1seg,
-	.param_p = NULL};
+	timer_config_t timer1seg = {
+		.timer = TIMER_A,
+		.period = 1000000,
+		.func_p = Notificacion_Timer_1seg,
+		.param_p = NULL};
 
-timer_config_t timer5seg = {
-	.timer = TIMER_B,
-	.period = 50000,
-	.func_p = Notificacion_Timer_5seg,
-	.param_p = NULL};
+	timer_config_t timer5seg = {
+		.timer = TIMER_B,
+		.period = 5000000,
+		.func_p = Notificacion_Timer_5seg,
+		.param_p = NULL};
 
 	TimerInit(&timer1seg);
 	TimerStart(timer1seg.timer);
