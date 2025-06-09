@@ -3,15 +3,18 @@
  * @section genDesc General Description
  *
  * Se desarrollará un dispositivo en forma de guante, que buscará transducir la
- * flexión individual de cada dedo en un valor porcentual, observable en un
+ * flexión individual de cada dedo en un valor numerico, observable en un
  * Smartphone o Computadora. Este dispositivo permitiría medir el grado de mejora
  * o impacto en un tratamiento articular de los dedos de la mano.
  *
  * @section hardConn Hardware Connection
  *
- * |    Peripheral  |   ESP32   	|
- * |:--------------:|:--------------|
- * | 	PIN_X	 	| 	GPIO_X		|
+ * |    Funcion				|   ESP-EDU   	|
+ * |:----------------------:|:--------------|
+ * | 	Entrada analogica 	| 		CH0		|
+ * | 	Entrada analogica 	| 		CH1		|
+ * | 	Entrada analogica 	| 		CH2		|
+ * | 	Entrada analogica 	| 		CH3		|
  *
  *
  * @section changelog Changelog
@@ -28,7 +31,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <analog_io_mcu.h>
-#include <uart_mcu.h>
 #include <timer_mcu.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -37,20 +39,27 @@
 #include "ble_mcu.h"
 /*==================[macros and definitions]=================================*/
 
-#define pulgar 0
-#define indice 1
 #define numero_dedos 2
 
-#define CONFIG_BLINK_PERIOD 500
-#define LED_BT LED_1
 
 /*==================[internal data definition]===============================*/
 
+/** @def enviar_datos
+ *  @brief Valor logico que activa o desactiva la transmision de datos
+ */
 bool enviar_datos = true;
+/** @def maxima_extension
+ *  @brief Arreglo de valores numericos que almacenan el maximo valor leido en cada entrada analogica cuando los dedos estan extendidos
+ */
 uint16_t maxima_extension[numero_dedos];
+/** @def minima_extension
+ *  @brief Arreglo de valores numericos que almacenan el minimo valor leido en cada entrada analogica cuando los dedos estan retraidos
+ */
 uint16_t minima_extension[numero_dedos];
+/** @def mediciones
+ *  @brief Arreglo de valores numericos que almacenan el valor leido en cada entrada analogica
+ */
 uint16_t mediciones[numero_dedos];
-adc_ch_t canal = 1;
 
 TaskHandle_t enviar_datos_tarea_handle = NULL;
 TaskHandle_t timer_medicion_handle = NULL;
@@ -58,10 +67,21 @@ TaskHandle_t main_task_handle = NULL;
 
 /*==================[internal functions declaration]=========================*/
 
+
+/** @fn void notificacion_medir
+ * @brief Envia una notificacion a la tarea de medir lo que la pasa de suspendida a lista para ser reanudadas.
+ * @return
+ */
+
 void notificacion_medir()
 {
 	vTaskNotifyGiveFromISR(timer_medicion_handle, pdFALSE);
 }
+
+/** @fn void tarea_enviar_datos
+ * @brief Envia una notificacion a la tarea de medir lo que la pasa de suspendida a lista para ser reanudadas.
+ * @return
+ */
 
 void tarea_enviar_datos()
 {
@@ -178,25 +198,10 @@ void app_main(void)
 	xTaskCreate(&tarea_enviar_datos, "DATOS", 2048, NULL, 5, &enviar_datos_tarea_handle);
 	SwitchActivInt((SWITCH_1 | SWITCH_2), toggle_enviar_datos, NULL);
 	SwitchActivInt(SWITCH_1, calibrarMax, NULL);
-	SwitchActivInt(SWITCH_1, calibrarMin, NULL);
+	SwitchActivInt(SWITCH_2, calibrarMin, NULL);
 
 	TimerStart(timer_medicion.timer);
 
-	// while (1)
-	// {
-	// 	vTaskDelay(CONFIG_BLINK_PERIOD / portTICK_PERIOD_MS);
-	// 	switch (BleStatus())
-	// 	{
-	// 	case BLE_OFF:
-	// 		LedOff(LED_BT);
-	// 		break;
-	// 	case BLE_DISCONNECTED:
-	// 		LedToggle(LED_BT);
-	// 		break;
-	// 	case BLE_CONNECTED:
-	// 		LedOn(LED_BT);
-	// 		break;
-	// 	}
-	// }
+
 }
 /*==================[end of file]============================================*/

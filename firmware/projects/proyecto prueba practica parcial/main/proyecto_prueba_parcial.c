@@ -69,6 +69,7 @@ typedef struct
 
 // 1. configuro el handler que voy a usar para la tarea
 TaskHandle_t timer_task_handle = NULL;
+
 // 2. configuro el handler que voy a usar para la interrupcion
 TaskHandle_t interrupcion_task_handle = NULL;
 
