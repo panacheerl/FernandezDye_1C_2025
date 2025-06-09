@@ -43,95 +43,123 @@
 
 /*==================[internal data definition]===============================*/
 
-TaskHandle_t uart_tarea_handle = NULL;
 TaskHandle_t humedad_temp_tarea_handle = NULL;
 TaskHandle_t radiacion_tarea_handle = NULL;
 
 char Temp_Humedad[30] = "Temperatura: %d ºC - Húmedad: %d % \n";
-char Riesgo_Nevada[30] = "RIESGO DE NEVADA";
+char Riesgo_Nevada[30] = "RIESGO DE NEVADA\n";
 char Radiacion[30] = "Radiación %d mR/h \n";
-char Riesgo_Rad[30] = "RADIACIÓN ELEVADA";
+char Riesgo_Rad[30] = "RADIACIÓN ELEVADA\n";
 
 float temp = 0.0;
 float hum = 0.0;
+uint16_t rad = 0;
+
+serial_config_t mi_uart = {
+	.port = UART_PC,
+	.baud_rate = 115200,
+	.func_p = NULL,
+	.param_p = NULL};
+
+timer_config_t timer1seg = {
+	.timer = TIMER_A,
+	.period = 10000,
+	.func_p = Notificacion_Timer_1seg,
+	.param_p = NULL};
+
+timer_config_t timer5seg = {
+	.timer = TIMER_B,
+	.period = 50000,
+	.func_p = Notificacion_Timer_5seg,
+	.param_p = NULL};
+
+analog_input_config_t entrada_analogica = {
+	.func_p = NULL,
+	.input = CH0,
+	.mode = ADC_SINGLE,
+	.sample_frec = 0,
+	.param_p = NULL};
 
 /*==================[internal functions declaration]=========================*/
 
-void enviar_dato_UART(void *param)
+void enviar_hyt_UART(void *param)
 {
 	while (true)
 	{
 
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-		uint8_t valor = 0;
-		sprintf(msg, valor);
+		Medir_Temp_Hum();
+		char msg[30];
+		sprintf(msg, Temp_Humedad, temp, hum);
 		UartSendString(msg);
+		if (hum > 85 and temp < 2)
+		{
+
+			UartSendString(Riesgo_Nevada);
+		}
+	}
+}
+
+void enviar_rad_UART(void *param)
+{
+	while (true)
+	{
+
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		Medir_Temp_Hum();
+		char msg[30];
+		sprintf(msg, Radiacion, rad);
+		UartSendString(msg);
+
+		if (rad > 40)
+		{
+
+			UartSendString(Riesgo_Rad);
+		}
 	}
 }
 
 void Notificacion_Timer_1seg(void *param)
 {
-	vTaskNotifyGiveFromISR(timer1s_tarea_handle, pdFALSE);
+	vTaskNotifyGiveFromISR(enviar_hyt_UART, pdFALSE);
 }
 void Notificacion_Timer_5seg(void *param)
 {
-	vTaskNotifyGiveFromISR(timer5s_tarea_handle, pdFALSE);
+	vTaskNotifyGiveFromISR(enviar_rad_UART, pdFALSE);
 }
 
 void Medir_Temp_Hum(void *param)
 {
-	ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 	dht11Read(&hum, &temp);
 }
 
-void Medir_Radiacion(void *param){
-//lee 3300 si el valor es 100mR/h
-
-
+void Medir_Radiacion(void *param)
+{
+	// lee 3300 si el valor es 100mR/h
+	uint16_t aux = 0;
+	AnalogInputReadSingle(entrada_analogica.input, &aux);
+	rad = aux * 100 / 3300;
 }
 
 /*==================[external functions definition]==========================*/
 void app_main(void)
 {
 
-	serial_config_t mi_uart = {
-		.port = UART_PC,
-		.baud_rate = 115200,
-		.func_p = NULL,
-		.param_p = NULL};
-
-	timer_config_t timer1seg = {
-		.timer = TIMER_A,
-		.period = 10000,
-		.func_p = Notificacion_Timer_1seg,
-		.param_p = NULL};
-
-	timer_config_t timer5seg = {
-		.timer = TIMER_B,
-		.period = 50000,
-		.func_p = Notificacion_Timer_5seg,
-		.param_p = NULL};
-
 	TimerInit(&timer1seg);
 	TimerStart(timer1seg.timer);
 	TimerInit(&timer5seg);
 	TimerStart(timer5seg.timer);
 	UartInit(&mi_uart);
-	
+
 	GPIOInit(GPIO_19, GPIO_INPUT);
 	dht11Init(GPIO_19);
 
-	xTaskCreate(&enviar_dato_UART, "UART", 1024, &mi_uart, 5, &uart_tarea_handle);
-	xTaskCreate(&Medir_Temp_Hum, "UART", 1024, NULL, 5, &humedad_temp_tarea_handle);
-	xTaskCreate(&Medir_Radiacion, "UART", 1024, NULL, 5, &radiacion_tarea_handle);
+	AnalogInputInit(&entrada_analogica);
 
+
+	xTaskCreate(&enviar_hyt_UART, "hyt", 1024, mi_uart, 5, &humedad_temp_tarea_handle);
+	xTaskCreate(&enviar_rad_UART, "rad", 1024, &mi_uart, 5, &radiacion_tarea_handle);
 }
 
-void set_mensaje
-{
-	if ()
-	{
-	}
-}
+
 /*==================[end of file]============================================*/
