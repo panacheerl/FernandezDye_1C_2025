@@ -50,18 +50,44 @@
 TaskHandle_t humedad_temp_tarea_handle = NULL;
 TaskHandle_t radiacion_tarea_handle = NULL;
 
-char Temp_Humedad[30] = "Temperatura: %d ºC - Húmedad: %d % \n";
-char Riesgo_Nevada[30] = "RIESGO DE NEVADA\n";
-char Radiacion[30] = "Radiación %d mR/h \n";
-char Riesgo_Rad[30] = "RADIACIÓN ELEVADA\n";
+/** @def Temp_Humedad
+ *  @brief Cadena de caracteres que da formato a la temperatura y la humedad medida por el sensor
+ */
+char Temp_Humedad[40] = "Temperatura: %d ºC - Húmedad: %d % \n";
+/** @def Riesgo_Nevada
+ *  @brief Cadena de caracteres que anuncia cuando hay riesgo de nevada
+ */
+char Riesgo_Nevada[20] = "RIESGO DE NEVADA\n";
+/** @def Temp_Humedad
+ *  @brief Cadena de caracteres que da formato a la radiacion por el sensor
+ */
+char Radiacion[20] = "Radiación %d mR/h \n";
+/** @def Riesgo_Rad
+ *  @brief Cadena de caracteres que anuncia cuando hay riesgo radioactivo
+ */
+char Riesgo_Rad[20] = "RADIACIÓN ELEVADA\n";
 
+/** @def temp
+ *  @brief Valor flotante que almacena la temperatura medida por el sensor DHT11
+ */
 float temp = 0.0;
+/** @def hum
+ *  @brief Valor flotante que almacena la humedad medida por el sensor DHT11
+ */
 float hum = 0.0;
+/** @def rad
+ *  @brief Valor entero que almacena la radiacion medida por el sensor analogico
+ */
 uint16_t rad = 0;
 
+/** @def dispositivo_funcionando
+ *  @brief Valor logico que indica si el dispositivo esta funcionando o no
+ */
 bool dispositivo_funcionando = true;
 
-
+/** @def entrada_analogica
+ *  @brief Estructura de configuracion de la entrada analogica
+ */
 analog_input_config_t entrada_analogica = {
 	.func_p = NULL,
 	.input = CH0,
@@ -71,12 +97,20 @@ analog_input_config_t entrada_analogica = {
 
 /*==================[internal functions declaration]=========================*/
 
-void Medir_Temp_Hum(void *param)
+/** @fn void Medir_Temp_Hum
+ * @brief Funcion que lee los parametros desde el sensor DHT11 y los almacena en memoria.
+ * @return
+ */
+void Medir_Temp_Hum()
 {
 	dht11Read(&hum, &temp);
 }
 
-void Medir_Radiacion(void *param)
+/** @fn void Medir_Radiacion
+ * @brief Funcion que lee los parametros desde el sensor analogico y los almacena en memoria.
+ * @return
+ */
+void Medir_Radiacion()
 {
 	// lee 3300 si el valor es 100mR/h
 	uint16_t aux = 0;
@@ -84,15 +118,30 @@ void Medir_Radiacion(void *param)
 	rad = aux * 100 / 3300;
 }
 
-void encender(void *param)
+
+/** @fn void encender
+ * @brief Funcion que cambia el estado del dispositivo a encendido.
+ * @return
+ */
+void encender()
 {
 	dispositivo_funcionando = true;
 }
-void apagar(void *param)
+
+/** @fn void apagar
+ * @brief Funcion que cambia el estado del dispositivo a apagado.
+ * @return
+ */
+void apagar()
 {
 	dispositivo_funcionando = false;
 }
-void enviar_hyt_UART(void *param)
+
+/** @fn void enviar_hyt_UART
+ * @brief Funcion que envia los parametros de humedad y temperatura por puerto serie mediante UART.
+ * @return
+ */
+void enviar_hyt_UART()
 {
 	while (true)
 	{
@@ -117,7 +166,11 @@ void enviar_hyt_UART(void *param)
 	}
 }
 
-void enviar_rad_UART(void *param)
+/** @fn void enviar_rad_UART
+ * @brief Funcion que envia los parametros de radiacion por puerto serie mediante UART.
+ * @return
+ */
+void enviar_rad_UART()
 {
 	while (true)
 	{
@@ -143,11 +196,21 @@ void enviar_rad_UART(void *param)
 	}
 }
 
+
+/** @fn void Notificacion_Timer_1seg
+ * @brief Funcion que envia cambia el estado de la tarea asignada a la humedad y temperatura.
+ * @return
+ */
 void Notificacion_Timer_1seg(void *param)
 {
 	if (dispositivo_funcionando)
 		vTaskNotifyGiveFromISR(enviar_hyt_UART, pdFALSE);
 }
+
+/** @fn void Notificacion_Timer_5seg
+ * @brief Funcion que envia cambia el estado de la tarea asignada a la radiacion.
+ * @return
+ */
 void Notificacion_Timer_5seg(void *param)
 {
 	if (dispositivo_funcionando)
@@ -192,8 +255,8 @@ timer_config_t timer5seg = {
 	xTaskCreate(&enviar_hyt_UART, "hyt", 1024, &mi_uart, 5, &humedad_temp_tarea_handle);
 	xTaskCreate(&enviar_rad_UART, "rad", 1024, &mi_uart, 5, &radiacion_tarea_handle);
 
-	SwitchActivInt(SWITCH_1 encender(), NULL);
-	SwitchActivInt(SWITCH_2 apagar(), NULL);
+	SwitchActivInt(SWITCH_1, encender(), NULL);
+	SwitchActivInt(SWITCH_2, apagar(), NULL);
 }
 
 /*==================[end of file]============================================*/
