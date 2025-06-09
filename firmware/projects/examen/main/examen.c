@@ -2,19 +2,23 @@
  *
  * @section genDesc General Description
  *
- * Se desarrollará un dispositivo en forma de guante, que buscará transducir la
- * flexión individual de cada dedo en un valor numerico, observable en un
- * Smartphone o Computadora. Este dispositivo permitiría medir el grado de mejora
- * o impacto en un tratamiento articular de los dedos de la mano.
+ * Se desarrollará una estacion de monitoreo ambiental que permita medir la temperatura,
+ * humedad y radiación. Adicionalmente a esto se implementara una alerta a una computadora
+ * por puerto serie, en conjunto con un codigo con luces LED, que advierta cuando los niveles
+ * sean peligrosos.
  *
  * @section hardConn Hardware Connection
  *
  * |    Funcion				|   ESP-EDU   	|
  * |:----------------------:|:--------------|
  * | 	Entrada analogica 	| 		CH0		|
- * | 	Entrada analogica 	| 		CH1		|
- * | 	Entrada analogica 	| 		CH2		|
- * | 	Entrada analogica 	| 		CH3		|
+ * 
+ * 
+ * |   	DHT11		|   ESP-EDU 	|
+ * |:--------------:|:--------------|
+ * | 	VCC     	|	3V3     	|
+ * | 	DATA	 	| 	GPIO_19		|
+ * | 	GND		 	| 	GND 		|
  *
  *
  * @section changelog Changelog
@@ -57,23 +61,6 @@ uint16_t rad = 0;
 
 bool dispositivo_funcionando = true;
 
-serial_config_t mi_uart = {
-	.port = UART_PC,
-	.baud_rate = 115200,
-	.func_p = NULL,
-	.param_p = NULL};
-
-timer_config_t timer1seg = {
-	.timer = TIMER_A,
-	.period = 10000,
-	.func_p = Notificacion_Timer_1seg,
-	.param_p = NULL};
-
-timer_config_t timer5seg = {
-	.timer = TIMER_B,
-	.period = 50000,
-	.func_p = Notificacion_Timer_5seg,
-	.param_p = NULL};
 
 analog_input_config_t entrada_analogica = {
 	.func_p = NULL,
@@ -84,6 +71,27 @@ analog_input_config_t entrada_analogica = {
 
 /*==================[internal functions declaration]=========================*/
 
+void Medir_Temp_Hum(void *param)
+{
+	dht11Read(&hum, &temp);
+}
+
+void Medir_Radiacion(void *param)
+{
+	// lee 3300 si el valor es 100mR/h
+	uint16_t aux = 0;
+	AnalogInputReadSingle(entrada_analogica.input, &aux);
+	rad = aux * 100 / 3300;
+}
+
+void encender(void *param)
+{
+	dispositivo_funcionando = true;
+}
+void apagar(void *param)
+{
+	dispositivo_funcionando = false;
+}
 void enviar_hyt_UART(void *param)
 {
 	while (true)
@@ -93,13 +101,13 @@ void enviar_hyt_UART(void *param)
 		Medir_Temp_Hum();
 		char msg[30];
 		sprintf(msg, Temp_Humedad, temp, hum);
-		UartSendString(msg);
-		if (hum > 85 and temp < 2)
+		UartSendString(UART_PC, msg);
+		if (hum > 85) if (temp < 2)
 		{
 			LedOn(LED_3);
 			LedOff(LED_1);
-			UartSendString(" - ");
-			UartSendString(Riesgo_Nevada);
+			UartSendString(UART_PC, " - ");
+			UartSendString(UART_PC, Riesgo_Nevada);
 		}
 		else
 		{
@@ -115,17 +123,17 @@ void enviar_rad_UART(void *param)
 	{
 
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-		Medir_Temp_Hum();
+		Medir_Radiacion();
 		char msg[30];
 		sprintf(msg, Radiacion, rad);
-		UartSendString(msg);
+		UartSendString(UART_PC, msg);
 
 		if (rad > 40)
 		{
 			LedOn(LED_2);
 			LedOff(LED_1);
-			UartSendString(" - ");
-			UartSendString(Riesgo_Rad);
+			UartSendString(UART_PC, " - ");
+			UartSendString(UART_PC, Riesgo_Rad);
 		}
 		else
 		{
@@ -146,31 +154,29 @@ void Notificacion_Timer_5seg(void *param)
 		vTaskNotifyGiveFromISR(enviar_rad_UART, pdFALSE);
 }
 
-void Medir_Temp_Hum(void *param)
-{
-	dht11Read(&hum, &temp);
-}
 
-void Medir_Radiacion(void *param)
-{
-	// lee 3300 si el valor es 100mR/h
-	uint16_t aux = 0;
-	AnalogInputReadSingle(entrada_analogica.input, &aux);
-	rad = aux * 100 / 3300;
-}
-
-void encender()
-{
-	dispositivo_funcionando = true;
-}
-void apagar()
-{
-	dispositivo_funcionando = false;
-}
 
 /*==================[external functions definition]==========================*/
 void app_main(void)
 {
+
+	serial_config_t mi_uart = {
+	.port = UART_PC,
+	.baud_rate = 115200,
+	.func_p = NULL,
+	.param_p = NULL};
+
+timer_config_t timer1seg = {
+	.timer = TIMER_A,
+	.period = 10000,
+	.func_p = Notificacion_Timer_1seg,
+	.param_p = NULL};
+
+timer_config_t timer5seg = {
+	.timer = TIMER_B,
+	.period = 50000,
+	.func_p = Notificacion_Timer_5seg,
+	.param_p = NULL};
 
 	TimerInit(&timer1seg);
 	TimerStart(timer1seg.timer);
@@ -186,8 +192,8 @@ void app_main(void)
 	xTaskCreate(&enviar_hyt_UART, "hyt", 1024, &mi_uart, 5, &humedad_temp_tarea_handle);
 	xTaskCreate(&enviar_rad_UART, "rad", 1024, &mi_uart, 5, &radiacion_tarea_handle);
 
-	SwitchActivInt(SWITCH_1 encender, false, NULL);
-	SwitchActivInt(SWITCH_2 apagar, false, NULL);
+	SwitchActivInt(SWITCH_1 encender(), NULL);
+	SwitchActivInt(SWITCH_2 apagar(), NULL);
 }
 
 /*==================[end of file]============================================*/
