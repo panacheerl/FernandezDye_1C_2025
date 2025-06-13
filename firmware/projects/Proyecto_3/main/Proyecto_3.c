@@ -41,7 +41,6 @@
 
 #define numero_dedos 2
 
-
 /*==================[internal data definition]===============================*/
 
 /** @def enviar_datos
@@ -51,22 +50,21 @@ bool enviar_datos = true;
 /** @def maxima_extension
  *  @brief Arreglo de valores numericos que almacenan el maximo valor leido en cada entrada analogica cuando los dedos estan extendidos
  */
-uint16_t maxima_extension[numero_dedos];
+uint16_t maxima_extension[numero_dedos] = {3300,3300};
 /** @def minima_extension
  *  @brief Arreglo de valores numericos que almacenan el minimo valor leido en cada entrada analogica cuando los dedos estan retraidos
  */
-uint16_t minima_extension[numero_dedos];
+uint16_t minima_extension[numero_dedos] = {0,0};
 /** @def mediciones
  *  @brief Arreglo de valores numericos que almacenan el valor leido en cada entrada analogica
  */
-uint16_t mediciones[numero_dedos];
+uint16_t mediciones[numero_dedos] = {0,0};
 
 TaskHandle_t enviar_datos_tarea_handle = NULL;
 TaskHandle_t timer_medicion_handle = NULL;
 TaskHandle_t main_task_handle = NULL;
 
 /*==================[internal functions declaration]=========================*/
-
 
 /** @fn void notificacion_medir
  * @brief Envia una notificacion a la tarea de medir lo que la pasa de suspendida a lista para ser reanudadas.
@@ -99,8 +97,9 @@ void tarea_enviar_datos()
 
 			for (int i = 0; i < numero_dedos; i++)
 			{
-				porcentajes[i] = (mediciones[i] * 100);
-				salida[i] = porcentajes[i] / maxima_extension[i];
+				porcentajes[i] = ((mediciones[i] + minima_extension[i]) * 100);
+				porcentajes[i] = ((porcentajes[i] / (maxima_extension[i] - minima_extension[i])) - 100);
+				salida[i] = porcentajes[i];
 			}
 
 			sprintf(msg, "*I%d* *M%d*\n", salida[0], salida[1]);
@@ -112,26 +111,30 @@ void tarea_enviar_datos()
 void calibrarMax()
 {
 	LedToggle(LED_3);
-	vTaskDelay(50000 / portTICK_PERIOD_MS);
-
+	// vTaskDelay(50000 / portTICK_PERIOD_MS);
 	for (int i = 0; i < numero_dedos; i++)
 	{
-		adc_ch_t canal = i;
-		AnalogInputReadSingle(canal, &maxima_extension[i]);
+		maxima_extension[i] = mediciones[i];
+		char msg[15];
+		sprintf(msg, "Max %d %d\n", i,maxima_extension[i]);
+		BleSendString(msg);
 	}
 	LedToggle(LED_3);
 }
 
 void calibrarMin()
 {
-	LedToggle(LED_3);
-	vTaskDelay(50000 / portTICK_PERIOD_MS);
+	LedToggle(LED_1);
+
 	for (int i = 0; i < numero_dedos; i++)
 	{
-		adc_ch_t canal = i;
-		AnalogInputReadSingle(canal, &minima_extension[i]);
+		minima_extension[i] = mediciones[i];
+
+		char msg[15];
+		sprintf(msg,"Min %d %d\n ", i , minima_extension[i]);
+		BleSendString(msg);
 	}
-	LedToggle(LED_3);
+	LedToggle(LED_1);
 }
 
 void medir_dedos()
@@ -194,14 +197,12 @@ void app_main(void)
 	LedsInit();
 	SwitchesInit();
 
-	xTaskCreate(&medir_dedos, "medir", 2048, NULL, 5, &timer_medicion_handle);
+	xTaskCreate(&medir_dedos, "medir", 4096, NULL, 5, &timer_medicion_handle);
 	xTaskCreate(&tarea_enviar_datos, "DATOS", 2048, NULL, 5, &enviar_datos_tarea_handle);
-	SwitchActivInt((SWITCH_1 | SWITCH_2), toggle_enviar_datos, NULL);
+	// SwitchActivInt((SWITCH_1 | SWITCH_2), toggle_enviar_datos, NULL);
 	SwitchActivInt(SWITCH_1, calibrarMax, NULL);
 	SwitchActivInt(SWITCH_2, calibrarMin, NULL);
 
 	TimerStart(timer_medicion.timer);
-
-
 }
 /*==================[end of file]============================================*/
