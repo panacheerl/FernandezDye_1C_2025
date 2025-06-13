@@ -39,7 +39,7 @@
 #include "ble_mcu.h"
 /*==================[macros and definitions]=================================*/
 
-#define numero_dedos 2
+#define numero_dedos 3
 
 /*==================[internal data definition]===============================*/
 
@@ -97,12 +97,12 @@ void tarea_enviar_datos()
 
 			for (int i = 0; i < numero_dedos; i++)
 			{
-				porcentajes[i] = ((mediciones[i] + minima_extension[i]) * 100);
-				porcentajes[i] = ((porcentajes[i] / (maxima_extension[i] - minima_extension[i])) - 100);
-				salida[i] = porcentajes[i];
+				//porcentajes[i] = ((mediciones[i] + minima_extension[i]) * 100);
+				//porcentajes[i] = ((porcentajes[i] / (maxima_extension[i] - minima_extension[i])) - 100);
+				salida[i] = mediciones[i]; //porcentajes[i];
 			}
 
-			sprintf(msg, "*I%d* *M%d*\n", salida[0], salida[1]);
+			sprintf(msg, "*I%d* *M%d* *A%d*\n", salida[0], salida[1], salida[2]);
 			BleSendString(msg);
 		}
 	}
