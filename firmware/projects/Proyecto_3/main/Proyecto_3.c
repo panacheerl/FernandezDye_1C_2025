@@ -132,7 +132,7 @@ void calibrarMin()
 
 		char msg[15];
 		sprintf(msg,"Min %d %d\n ", i , minima_extension[i]);
-		BleSendString(msg);
+		BleSendString(msg); 
 	}
 	LedToggle(LED_1);
 }
@@ -185,6 +185,13 @@ void app_main(void)
 		.sample_frec = 0,
 		.param_p = NULL};
 
+			analog_input_config_t input_dedo_3 = {
+		.func_p = NULL,
+		.input = CH2,
+		.mode = ADC_SINGLE,
+		.sample_frec = 0,
+		.param_p = NULL};
+
 	ble_config_t ble_configuration = {
 		"ESP_J_F",
 		BLE_NO_INT};
@@ -193,6 +200,7 @@ void app_main(void)
 
 	AnalogInputInit(&input_dedo_1);
 	AnalogInputInit(&input_dedo_2);
+	AnalogInputInit(&input_dedo_3);
 	BleInit(&ble_configuration);
 	LedsInit();
 	SwitchesInit();
@@ -200,8 +208,8 @@ void app_main(void)
 	xTaskCreate(&medir_dedos, "medir", 4096, NULL, 5, &timer_medicion_handle);
 	xTaskCreate(&tarea_enviar_datos, "DATOS", 2048, NULL, 5, &enviar_datos_tarea_handle);
 	// SwitchActivInt((SWITCH_1 | SWITCH_2), toggle_enviar_datos, NULL);
-	SwitchActivInt(SWITCH_1, calibrarMax, NULL);
-	SwitchActivInt(SWITCH_2, calibrarMin, NULL);
+	SwitchActivInt(SWITCH_1, toggle_enviar_datos, NULL);
+	//SwitchActivInt(SWITCH_2, calibrarMin, NULL);
 
 	TimerStart(timer_medicion.timer);
 }
