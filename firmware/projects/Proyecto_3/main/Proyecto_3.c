@@ -14,7 +14,7 @@
  * | 	Entrada analogica 	| 		CH0		|
  * | 	Entrada analogica 	| 		CH1		|
  * | 	Entrada analogica 	| 		CH2		|
- * | 	Entrada analogica 	| 		CH3		|
+ *
  *
  *
  * @section changelog Changelog
@@ -35,11 +35,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "switch.h"
-#include "led.h"
 #include "ble_mcu.h"
 /*==================[macros and definitions]=================================*/
 
 #define numero_dedos 3
+#define periodo_medicion 100000
 
 /*==================[internal data definition]===============================*/
 
@@ -47,18 +47,16 @@
  *  @brief Valor logico que activa o desactiva la transmision de datos
  */
 bool enviar_datos = true;
-/** @def maxima_extension
- *  @brief Arreglo de valores numericos que almacenan el maximo valor leido en cada entrada analogica cuando los dedos estan extendidos
+
+/** @def medir
+ *  @brief Valor logico que activa o desactiva la medicion
  */
-uint16_t maxima_extension[numero_dedos] = {3300,3300};
-/** @def minima_extension
- *  @brief Arreglo de valores numericos que almacenan el minimo valor leido en cada entrada analogica cuando los dedos estan retraidos
- */
-uint16_t minima_extension[numero_dedos] = {0,0};
+bool medir = true;
+
 /** @def mediciones
  *  @brief Arreglo de valores numericos que almacenan el valor leido en cada entrada analogica
  */
-uint16_t mediciones[numero_dedos] = {0,0};
+uint16_t mediciones[numero_dedos] = {0, 0, 0};
 
 TaskHandle_t enviar_datos_tarea_handle = NULL;
 TaskHandle_t timer_medicion_handle = NULL;
@@ -77,7 +75,7 @@ void notificacion_medir()
 }
 
 /** @fn void tarea_enviar_datos
- * @brief Envia una notificacion a la tarea de medir lo que la pasa de suspendida a lista para ser reanudadas.
+ * @brief Envia los datos almacenados por BLE.
  * @return
  */
 
@@ -92,66 +90,39 @@ void tarea_enviar_datos()
 		{
 			char msg[30];
 
-			uint32_t porcentajes[numero_dedos];
-			uint16_t salida[numero_dedos];
-
-			for (int i = 0; i < numero_dedos; i++)
-			{
-				//porcentajes[i] = ((mediciones[i] + minima_extension[i]) * 100);
-				//porcentajes[i] = ((porcentajes[i] / (maxima_extension[i] - minima_extension[i])) - 100);
-				salida[i] = mediciones[i]; //porcentajes[i];
-			}
-
-			sprintf(msg, "*I%d* *M%d* *A%d*\n", salida[0], salida[1], salida[2]);
+			sprintf(msg, "*I%d* *M%d* *A%d*\n", mediciones[0], mediciones[1], mediciones[2]);
 			BleSendString(msg);
 		}
 	}
 }
 
-void calibrarMax()
-{
-	LedToggle(LED_3);
-	// vTaskDelay(50000 / portTICK_PERIOD_MS);
-	for (int i = 0; i < numero_dedos; i++)
-	{
-		maxima_extension[i] = mediciones[i];
-		char msg[15];
-		sprintf(msg, "Max %d %d\n", i,maxima_extension[i]);
-		BleSendString(msg);
-	}
-	LedToggle(LED_3);
-}
-
-void calibrarMin()
-{
-	LedToggle(LED_1);
-
-	for (int i = 0; i < numero_dedos; i++)
-	{
-		minima_extension[i] = mediciones[i];
-
-		char msg[15];
-		sprintf(msg,"Min %d %d\n ", i , minima_extension[i]);
-		BleSendString(msg); 
-	}
-	LedToggle(LED_1);
-}
+/** @fn void medir_dedos
+ * @brief Lee el valor actual de las entradas analogicas y las almacena en memoria.
+ * @return
+ */
 
 void medir_dedos()
 {
 	while (1)
 	{
 
-		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-		for (int i = 0; i < numero_dedos; i++)
+		if (medir == true)
 		{
-			adc_ch_t canal = i;
-			AnalogInputReadSingle(canal, &mediciones[i]);
+			ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+			for (int i = 0; i < numero_dedos; i++)
+			{
+				adc_ch_t canal = i;
+				AnalogInputReadSingle(canal, &mediciones[i]);
+			}
 		}
 		vTaskNotifyGiveFromISR(enviar_datos_tarea_handle, pdFALSE);
 	}
 }
 
+/** @fn void toggle_enviar_datos
+ * @brief Detiene o reanuda la transmision de datos por BLE.
+ * @return
+ */
 void toggle_enviar_datos()
 {
 
@@ -159,6 +130,19 @@ void toggle_enviar_datos()
 		enviar_datos = false;
 	else
 		enviar_datos = true;
+}
+
+/** @fn void toggle_medir
+ * @brief Detiene o reanuda la medicion de los valores actuales.
+ * @return
+ */
+void toggle_medir()
+{
+
+	if (medir == true)
+		medir = false;
+	else
+		medir = true;
 }
 
 /*==================[external functions definition]==========================*/
@@ -169,7 +153,7 @@ void app_main(void)
 		.func_p = notificacion_medir,
 		.param_p = NULL,
 		.timer = TIMER_A,
-		.period = 100000};
+		.period = periodo_medicion};
 
 	analog_input_config_t input_dedo_1 = {
 		.func_p = NULL,
@@ -185,7 +169,7 @@ void app_main(void)
 		.sample_frec = 0,
 		.param_p = NULL};
 
-			analog_input_config_t input_dedo_3 = {
+	analog_input_config_t input_dedo_3 = {
 		.func_p = NULL,
 		.input = CH2,
 		.mode = ADC_SINGLE,
@@ -202,14 +186,13 @@ void app_main(void)
 	AnalogInputInit(&input_dedo_2);
 	AnalogInputInit(&input_dedo_3);
 	BleInit(&ble_configuration);
-	LedsInit();
 	SwitchesInit();
 
 	xTaskCreate(&medir_dedos, "medir", 4096, NULL, 5, &timer_medicion_handle);
 	xTaskCreate(&tarea_enviar_datos, "DATOS", 2048, NULL, 5, &enviar_datos_tarea_handle);
-	// SwitchActivInt((SWITCH_1 | SWITCH_2), toggle_enviar_datos, NULL);
+
 	SwitchActivInt(SWITCH_1, toggle_enviar_datos, NULL);
-	//SwitchActivInt(SWITCH_2, calibrarMin, NULL);
+	SwitchActivInt(SWITCH_2, toggle_medir, NULL);
 
 	TimerStart(timer_medicion.timer);
 }
